@@ -98,6 +98,7 @@ static void fillFeatures(Handle<Object> features, cpu_id_t& cpuData) {
 	features->Set(Nan::New("xsaveInstructions").ToLocalChecked(), Nan::New(cpuData.flags[CPU_FEATURE_XSAVE]));
 	features->Set(Nan::New("osxsaveInstruction").ToLocalChecked(), Nan::New(cpuData.flags[CPU_FEATURE_OSXSAVE]));
 	features->Set(Nan::New("avx").ToLocalChecked(), Nan::New(cpuData.flags[CPU_FEATURE_AVX]));
+	features->Set(Nan::New("avx2").ToLocalChecked(), Nan::New(cpuData.flags[CPU_FEATURE_AVX2]));
 	features->Set(Nan::New("mmxExt").ToLocalChecked(), Nan::New(cpuData.flags[CPU_FEATURE_MMXEXT]));
 	features->Set(Nan::New("amd3dNow").ToLocalChecked(), Nan::New(cpuData.flags[CPU_FEATURE_3DNOW]));
 	features->Set(Nan::New("amd3dNowExt").ToLocalChecked(), Nan::New(cpuData.flags[CPU_FEATURE_3DNOWEXT]));
