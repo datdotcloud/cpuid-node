@@ -261,11 +261,17 @@ struct cpu_id_t {
 	
 	/**
 	 * The total number of logical processors.
+	 * The same value is availabe through \ref cpuid_get_total_cpus.
 	 *
 	 * This is num_logical_cpus * {total physical processors in the system}
+	 * (but only on a real system, under a VM this number may be lower).
 	 *
 	 * If you're writing a multithreaded program and you want to run it on
 	 * all CPUs, this is the number of threads you need.
+	 *
+	 * @note in a VM, this will exactly match the number of CPUs set in
+	 *       the VM's configuration.
+	 *
 	 */
 	int32_t total_logical_cpus;
 	
@@ -478,6 +484,8 @@ typedef enum {
 	CPU_FEATURE_AVX512BW,	/*!< AVX-512 Byte/Word granular insns */
 	CPU_FEATURE_AVX512VL,	/*!< AVX-512 128/256 vector length extensions */
 	CPU_FEATURE_SGX,	/*!< SGX extensions. Non-autoritative, check cpu_id_t::sgx::present to verify presence */
+	CPU_FEATURE_RDSEED,	/*!< RDSEED instruction */
+	CPU_FEATURE_ADX,	/*!< ADX extensions (arbitrary precision) */
 	/* termination: */
 	NUM_CPU_FEATURES,
 } cpu_feature_t;
@@ -556,8 +564,14 @@ struct cpu_mark_t {
 };
 
 /**
- * @brief Returns the total number of CPUs even if CPUID is not present
- * @retval Number of CPUs available
+ * @brief Returns the total number of logical CPU threads (even if CPUID is not present).
+ *
+ * Under VM, this number (and total_logical_cpus, since they are fetched with the same code)
+ * may be nonsensical, i.e. might not equal NumPhysicalCPUs*NumCoresPerCPU*HyperThreading.
+ * This is because no matter how many logical threads the host machine has, you may limit them
+ * in the VM to any number you like. **This** is the number returned by cpuid_get_total_cpus().
+ *
+ * @returns Number of logical CPU threads available. Equals the \ref cpu_id_t::total_logical_cpus.
  */
 int cpuid_get_total_cpus(void);
 
@@ -1086,9 +1100,30 @@ int cpu_rdmsr_range(struct msr_driver_t* handle, uint32_t msr_index, uint8_t hig
  *           processor model, the respective value is returned.
  *           if no information is available, or the CPU doesn't support
  *           the query, the special value CPU_INVALID_VALUE is returned
+ * @note This function is not MT-safe. If you intend to call it from multiple
+ *       threads, guard it through a mutex or a similar primitive.
  */
 int cpu_msrinfo(struct msr_driver_t* handle, cpu_msrinfo_request_t which);
 #define CPU_INVALID_VALUE 0x3fffffff
+
+/**
+ * @brief Writes the raw MSR data to a text file
+ * @param data - a pointer to msr_driver_t structure
+ * @param filename - the path of the file, where the serialized data should be
+ *                   written. If empty, stdout will be used.
+ * @note This is intended primarily for debugging. On some processor, which is
+ *       not currently supported or not completely recognized by cpu_identify,
+ *       one can still successfully get the raw data and write it to a file.
+ *       libcpuid developers can later import this file and debug the detection
+ *       code as if running on the actual hardware.
+ *       The file is simple text format of "something=value" pairs. Version info
+ *       is also written, but the format is not intended to be neither backward-
+ *       nor forward compatible.
+ * @returns zero if successful, and some negative number on error.
+ *          The error message can be obtained by calling \ref cpuid_error.
+ *          @see cpu_error_t
+ */
+int msr_serialize_raw_data(struct msr_driver_t* handle, const char* filename);
 
 /**
  * @brief Closes an open MSR driver
